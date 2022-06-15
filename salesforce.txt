@@ -1,0 +1,218 @@
+<apex:page docType="html-5.0" title="File Uploader">
+    <h3>
+      Select a file to upload as a new Chatter File.
+    </h3>
+    <input type="file" id="file" onchange="upload()"/>
+    <p id="message"></p>
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="{!$Resource.forcetk}"></script>
+    <script>
+      var client = new forcetk.Client();
+
+      client.setSessionToken('{!$Api.Session_ID}');
+
+      function upload() {
+          var file = $("#file")[0].files[0];
+          client.createBlob('ContentVersion', {
+              Origin: 'H', // 'H' for Chatter File, 'C' for Content Document
+              PathOnClient: file.name
+          }, file.name, 'VersionData', file, function(response){
+              console.log(response);
+              $("#message").html("Chatter File created: <a target=\"_blank\" href=\"/" + response.id + "\">Take a look!</a>");
+          }, function(request, status, response){
+              $("#message").html("Error: " + status);
+          });
+      }
+    </script>
+  </apex:page>
+  
+  
+  
+  
+  <apex:page>
+    <apex:includeScript value="{!URLFOR($Resource.static, 'jquery.js')}" />
+    <apex:includeScript value="{!URLFOR($Resource.static, 'forcetk.js')}"  />
+    <script type="text/javascript">
+		// Get an instance of the REST API client and set the session ID
+		var client = new forcetk.Client();
+		client.setSessionToken('{!$Api.Session_ID}');
+    
+        client.query("SELECT Name FROM Account LIMIT 1", function(response){
+            $('#accountname').text(response.records[0].Name);
+        });
+    </script>
+    <p>The first account I see is <span id="accountname"></span>.</p>
+</apex:page>
+
+
+<html>
+  <head>
+
+	<!-- 
+	jQuery - http://docs.jquery.com/Downloading_jQuery
+	-->
+    <script type="text/javascript" src="static/jquery.js"></script>
+	<!--
+	From jQuery-swip - http://code.google.com/p/jquery-swip/source/browse/trunk/jquery.popupWindow.js 
+	-->
+	<script type="text/javascript" src="static/jquery.popup.js"></script>
+    <script type="text/javascript" src="forcetk.js"></script>
+    <script type="text/javascript">
+		// OAuth Configuration
+		var loginUrl    = 'https://login.salesforce.com/';
+		var clientId    = 'YOUR_CLIENT_ID';
+		var redirectUri = 'PATH_TO_YOUR_APP/oauthcallback.html';
+		var proxyUrl    = 'PATH_TO_YOUR_APP/proxy.php?mode=native';
+
+		var client = new forcetk.Client(clientId, loginUrl, proxyUrl);
+
+		$(document).ready(function() {
+			$('#message').popupWindow({ 
+				windowURL: getAuthorizeUrl(loginUrl, clientId, redirectUri),
+				windowName: 'Connect',
+				centerBrowser: 1,
+				height:524, 
+				width:675
+			});
+		});
+
+		function getAuthorizeUrl(loginUrl, clientId, redirectUri){
+		    return loginUrl+'services/oauth2/authorize?display=popup'
+		        +'&response_type=token&client_id='+escape(clientId)
+		        +'&redirect_uri='+escape(redirectUri);
+		}
+	
+		function sessionCallback(oauthResponse) {
+		    if (typeof oauthResponse === 'undefined'
+		        || typeof oauthResponse['access_token'] === 'undefined') {
+		        $('#message').text('Error - unauthorized!');
+		    } else {
+		        client.setSessionToken(oauthResponse.access_token, null,
+		            oauthResponse.instance_url);
+
+			        client.query("SELECT Name FROM Account LIMIT 1", 
+			          function(response){
+			            $('#message').text('The first account I see is '
+			              +response.records[0].Name);
+			        });
+		    }
+		}
+    </script>
+    <p id="message">Click here.</p>
+</html>
+
+
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>ForceTK Demo</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no;" />
+    <script type="text/javascript" src="js/jquery-1.11.2.min.js"></script>
+    <script type="text/javascript" src="js/forcetk.js"></script>
+    <script type="text/javascript" src="cordova.js"></script>
+    <script type="text/javascript">
+		// OAuth Configuration
+		var loginUrl    = 'https://login.salesforce.com/';
+		var clientId    = '3MVG9Km_cBLhsuPzTtcGHsZpj9HSp.uUwbHupEXhWi6k3JJphEv8swpsUYIFCZSLp8pi7YYMbRjeQUxptYdIt';
+		var redirectUri = 'https://login.salesforce.com/services/oauth2/success';
+
+		var client = new forcetk.Client(clientId, loginUrl);
+
+        // Make our own startsWith utility fn
+        if (!String.prototype.startsWith) {
+          String.prototype.startsWith = function(searchString, position) {
+            position = position || 0;
+            return this.lastIndexOf(searchString, position) === position;
+          };
+        }
+
+		document.addEventListener("deviceready", function(){
+            $('#login').click(function(e) {
+                e.preventDefault();
+                var ref = window.open(getAuthorizeUrl(loginUrl, clientId, redirectUri), 
+                					  '_blank', 'location=no,toolbar=no');
+                ref.addEventListener('loadstop', function(evt) {
+                    if (evt.url.startsWith(redirectUri)) {
+                        ref.close();
+                        sessionCallback(unescape(evt.url));
+                    }
+                });
+            });
+		});
+
+		function getAuthorizeUrl(loginUrl, clientId, redirectUri){
+		    return loginUrl+'services/oauth2/authorize?display=touch'
+		        +'&response_type=token&client_id='+escape(clientId)
+		        +'&redirect_uri='+escape(redirectUri);
+		}
+	
+        function sessionCallback(loc) {
+            var oauthResponse = {};
+            
+            var fragment = loc.split("#")[1];
+            
+            if (fragment) {
+                var nvps = fragment.split('&');
+                for (var nvp in nvps) {
+                    var parts = nvps[nvp].split('=');
+                    oauthResponse[parts[0]] = unescape(parts[1]);
+                }
+            }
+            
+            if (typeof oauthResponse === 'undefined'
+                || typeof oauthResponse['access_token'] === 'undefined') {
+			    alert("Unauthorized: No OAuth response");
+            } else {
+                client.setSessionToken(oauthResponse.access_token, null,
+			    	oauthResponse.instance_url);
+                
+				client.query("SELECT Name FROM Account LIMIT 1", 
+					function(response){
+					    $('#message').text('The first account I see is '
+						+response.records[0].Name);
+				    }
+				);
+            }
+        }
+    </script>
+  <head>
+  <body>
+    <button id="login">Click here to login</button>
+    <p id="message"></p>
+  </body>
+</html>
+
+
+
+<template>
+  <lightning-card title="HelloWorld" icon-name="custom:custom14">
+    <div class="slds-m-around_medium">
+      <p>Hello, {greeting}!</p>
+      <lightning-input label="Name" value={greeting} onchange={changeHandler}></lightning-input>
+    </div>
+  </lightning-card>
+</template>
+
+
+import { LightningElement } from 'lwc';
+export default class HelloWorld extends LightningElement {
+  greeting = 'World';
+  changeHandler(event) {
+    this.greeting = event.target.value;
+  }
+}
+
+
+
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata" fqn="helloWorld">
+  <apiVersion>52.0</apiVersion>
+  <isExposed>true</isExposed>
+  <targets>
+    <target>lightning__AppPage</target>
+    <target>lightning__RecordPage</target>
+    <target>lightning__HomePage</target>
+  </targets>
+</LightningComponentBundle>
